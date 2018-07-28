@@ -34,6 +34,15 @@ func curl(url string) float64 {
     return result
 }
 
+func printCurlInformation(url string, numCurls int, message string) {
+    fmt.Println("Making curl calls against", url)
+    fmt.Println("Making", numCurls, message)
+}
+
+func printCurlElapsedTime(curlNum int, elapsedTime float64) {
+    fmt.Println("Curl", curlNum + 1, "came in with a call time of", elapsedTime)
+}
+
 func main() {
     // Declare Variables
     sum := 0.0
@@ -41,19 +50,17 @@ func main() {
     serial,_ := strconv.ParseBool(os.Args[2])
     url := os.Args[3]
 
-    fmt.Println("Making curl calls against", url)
-
     start := time.Now()
 
     if(serial) {
-        fmt.Println("Making", numCurls, "curl calls sequentially")
+        printCurlInformation(url, numCurls, "curl calls sequentially")
         for i:=0;i<numCurls;i++ {
-            temp := curl(url)
-            fmt.Println("Curl", i + 1, "came in with a call time of", temp)
-            sum += temp
+            elapsedTime := curl(url)
+            printCurlElapsedTime(i, elapsedTime)
+            sum += elapsedTime
         }
     } else {
-        fmt.Println("Making", numCurls, "curl calls in parallel")
+        printCurlInformation(url, numCurls, "curl calls in parallel")
         c := make(chan float64)
 
         // Start curls
@@ -63,9 +70,9 @@ func main() {
 
         // Wait for curls to finish
         for i:=0;i<numCurls;i++ {
-            temp := <- c
-            fmt.Println("Curl", i + 1, "came in with a call time of", temp)
-            sum += temp
+            elapsedTime := <- c
+            printCurlElapsedTime(i, elapsedTime)
+            sum += elapsedTime
         }
     }
 
