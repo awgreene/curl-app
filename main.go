@@ -4,15 +4,16 @@ import (
   "os"
   "os/exec"
   "strconv"
+  "time"
 )
 
 // Makes Curl requests and returns the response time.
-func goCurl(c chan float64) {
-    c <- curl()
+func goCurl(url string, c chan float64) {
+    c <- curl(url)
 }
 
 // Makes Curl requests and returns the response time.
-func curl() float64 {
+func curl(url string) float64 {
 
     // Variables
     var (
@@ -23,7 +24,7 @@ func curl() float64 {
     // Shout out to Nathan Leclaire for his example
     // URL: https://nathanleclaire.com/blog/2014/12/29/shelled-out-commands-in-golang/
     cmdName := "curl"
-    cmdArgs := []string{"-w", "@curl-elapsed-time-format.txt", "-o", "/dev/null", "-s","localhost:8000/slow-endpoint"}
+    cmdArgs := []string{"-w", "@curl-elapsed-time-format.txt", "-o", "/dev/null", "-s", url}
     if cmdOut, err = exec.Command(cmdName, cmdArgs...).Output(); err != nil {
       fmt.Fprintln(os.Stderr, "There was an error running git rev-parse command: ", err)
       os.Exit(1)
@@ -38,27 +39,30 @@ func main() {
     sum := 0.0
     numCurls,_ := strconv.Atoi(os.Args[1])
     serial,_ := strconv.ParseBool(os.Args[2])
+    url := os.Args[3]
+
+    fmt.Println("Making curl calls against", url)
+
+    start := time.Now()
 
     if(serial) {
         fmt.Println("Making", numCurls, "curl calls sequentially")
         for i:=0;i<numCurls;i++ {
-            temp := curl()
+            temp := curl(url)
             fmt.Println("Curl", i + 1, "came in with a call time of", temp)
             sum += temp
         }
     } else {
-        // go routines
         fmt.Println("Making", numCurls, "curl calls in parallel")
         c := make(chan float64)
 
         // Start curls
         for i:=0;i<numCurls;i++ {
-            go goCurl(c)
+            go goCurl(url, c)
         }
 
         // Wait for curls to finish
         for i:=0;i<numCurls;i++ {
-            fmt.Printf("Waiting")
             temp := <- c
             fmt.Println("Curl", i + 1, "came in with a call time of", temp)
             sum += temp
@@ -67,4 +71,8 @@ func main() {
 
     // Print average curl time
     fmt.Println("Average Curl Time:", sum/float64(numCurls))
+
+    // Calculate elapsed Tim
+    elapsed := time.Since(start)
+    fmt.Println("Elapsed time:", elapsed)
 }
