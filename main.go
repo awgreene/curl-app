@@ -1,46 +1,70 @@
 package main
-
 import (
   "fmt"
   "os"
   "os/exec"
-  "sync"
   "strconv"
 )
 
-var wg sync.WaitGroup // 1
+// Makes Curl requests and returns the response time.
+func goCurl(c chan float64) {
+    c <- curl()
+}
 
-func routine() {
-  defer wg.Done() // 3
-  fmt.Println("routine finished")
+// Makes Curl requests and returns the response time.
+func curl() float64 {
+
+    // Variables
+    var (
+      cmdOut []byte
+      err error
+    )
+
+    // Shout out to Nathan Leclaire for his example
+    // URL: https://nathanleclaire.com/blog/2014/12/29/shelled-out-commands-in-golang/
+    cmdName := "curl"
+    cmdArgs := []string{"-w", "@curl-elapsed-time-format.txt", "-o", "/dev/null", "-s","localhost:8000/slow-endpoint"}
+    if cmdOut, err = exec.Command(cmdName, cmdArgs...).Output(); err != nil {
+      fmt.Fprintln(os.Stderr, "There was an error running git rev-parse command: ", err)
+      os.Exit(1)
+    }
+    sha := string(cmdOut)
+    result, err := strconv.ParseFloat(sha, 64)
+    return result
 }
 
 func main() {
-  wg.Add(1) // 2
-  for i:=0;i<1;i++ {
-    curl()
-  }
-  wg.Wait() // 4
+    // Declare Variables
+    sum := 0.0
+    numCurls,_ := strconv.Atoi(os.Args[1])
+    serial,_ := strconv.ParseBool(os.Args[2])
 
-  fmt.Println("main finished")
-}
+    if(serial) {
+        fmt.Println("Making", numCurls, "curl calls sequentially")
+        for i:=0;i<numCurls;i++ {
+            temp := curl()
+            fmt.Println("Curl", i + 1, "came in with a call time of", temp)
+            sum += temp
+        }
+    } else {
+        // go routines
+        fmt.Println("Making", numCurls, "curl calls in parallel")
+        c := make(chan float64)
 
-func curl() float64 {
-  var (
-    cmdOut []byte
-    err error
-  )
-  defer wg.Done()
+        // Start curls
+        for i:=0;i<numCurls;i++ {
+            go goCurl(c)
+        }
 
-  fmt.Println("Starting curl")
-  cmdName := "curl"
-  cmdArgs := []string{"localhost:8000/slow-endpoint"}
-  cmdArgs = []string{"-w", "@curl-elapsed-time-format.txt", "-o", "/dev/null", "-s","localhost:8000/slow-endpoint"}
-  if cmdOut, err = exec.Command(cmdName, cmdArgs...).Output(); err != nil {
-    fmt.Fprintln(os.Stderr, "There was an error running git rev-parse command: ", err)
-    os.Exit(1)
-  }
-  sha := string(cmdOut)
-  result, err := strconv.ParseFloat(sha, 64)
-  return result
+        // Wait for curls to finish
+        for i:=0;i<numCurls;i++ {
+            fmt.Printf("Waiting")
+            temp := <- c
+            fmt.Println("Curl", i + 1, "came in with a call time of", temp)
+            sum += temp
+        }
+    }
+
+    // Print average curl time
+    fmt.Println("Average Curl Time:", sum/float64(numCurls))
 }
