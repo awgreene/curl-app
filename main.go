@@ -48,7 +48,7 @@ func main() {
     // Declare and Parse Flags
     sumCurlsElapsedTime := 0.0
     numCurlsPtr := flag.Int("numCurls", 1, "Number of curls calls against the url")
-    parallelPtr :=  flag.Bool("parallel", false, "Run curl commands in parallel")
+    concurrentPtr :=  flag.Bool("concurrent", false, "Run concurrent curl commands")
     flag.Parse()
 
     // Get URL
@@ -56,7 +56,7 @@ func main() {
 
    start := time.Now()
 
-    if(!*parallelPtr) {
+    if(!*concurrentPtr) {
         printCurlInformation(url, *numCurlsPtr, "curl calls sequentially")
         for i:=0;i<*numCurlsPtr;i++ {
             elapsedTime := curl(url)
@@ -64,7 +64,7 @@ func main() {
             sumCurlsElapsedTime += elapsedTime
         }
     } else {
-        printCurlInformation(url, *numCurlsPtr, "curl calls in parallel")
+        printCurlInformation(url, *numCurlsPtr, "curl calls concurrently")
         c := make(chan float64)
 
         // Start curls
