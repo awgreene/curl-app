@@ -5,6 +5,7 @@ import (
   "os/exec"
   "strconv"
   "time"
+  "flag"
 )
 
 // Makes Curl requests and returns the response time.
@@ -44,40 +45,44 @@ func printCurlElapsedTime(curlNum int, elapsedTime float64) {
 }
 
 func main() {
-    // Declare Variables
-    sum := 0.0
-    numCurls,_ := strconv.Atoi(os.Args[1])
-    serial,_ := strconv.ParseBool(os.Args[2])
-    url := os.Args[3]
+    // Declare and Parse Flags
+    sumCurlsElapsedTime := 0.0
+    numCurlsPtr := flag.Int("numCurls", 1, "Number of curls calls against the url")
+    parallelPtr :=  flag.Bool("parallel", false, "Run curl commands in parallel")
+    flag.Parse()
 
-    start := time.Now()
+    // Get URL
+    url := flag.Arg(0)
 
-    if(serial) {
-        printCurlInformation(url, numCurls, "curl calls sequentially")
-        for i:=0;i<numCurls;i++ {
+   start := time.Now()
+
+    if(!*parallelPtr) {
+        printCurlInformation(url, *numCurlsPtr, "curl calls sequentially")
+        for i:=0;i<*numCurlsPtr;i++ {
             elapsedTime := curl(url)
             printCurlElapsedTime(i, elapsedTime)
-            sum += elapsedTime
+            sumCurlsElapsedTime += elapsedTime
         }
     } else {
-        printCurlInformation(url, numCurls, "curl calls in parallel")
+        printCurlInformation(url, *numCurlsPtr, "curl calls in parallel")
         c := make(chan float64)
 
         // Start curls
-        for i:=0;i<numCurls;i++ {
+        for i:=0;i<*numCurlsPtr;i++ {
             go goCurl(url, c)
         }
 
         // Wait for curls to finish
-        for i:=0;i<numCurls;i++ {
+        for i:=0;i<*numCurlsPtr;i++ {
             elapsedTime := <- c
             printCurlElapsedTime(i, elapsedTime)
-            sum += elapsedTime
+            sumCurlsElapsedTime += elapsedTime
         }
     }
 
+
     // Print average curl time
-    fmt.Println("Average Curl Time:", sum/float64(numCurls))
+    fmt.Println("Average Curl Time:", sumCurlsElapsedTime/float64(*numCurlsPtr))
 
     // Calculate elapsed Tim
     elapsed := time.Since(start)
